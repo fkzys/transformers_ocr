@@ -1,3 +1,6 @@
+> [!CAUTION]
+> Transformers OCR is deprecated. Install [lancet](https://github.com/Ajatt-Tools/lancet) instead.
+
 # Transformers OCR
 
 > https://tatsumoto.neocities.org/blog/mining-from-manga.html

@@ -58,6 +58,12 @@ Repository moved to https://gitlab.com/fkzys/transformers-ocr.
   running `pip install`.
 - **Typo: `spectactle_select`** → `spectacle_select`.
 - **`stderr=sys.stdout` in `maim_select`** → `stderr=subprocess.DEVNULL`.
+- **`ensure_listening` bypassed wrapper scripts.**
+  The subprocess was launched via a hardcoded path to the venv Python
+  and `__file__`, skipping any wrapper (e.g. bwrap sandbox) installed
+  earlier in `$PATH`. Now uses the program name for standard PATH
+  lookup, allowing wrappers to intercept the `start --foreground`
+  invocation.
 
 ### Changed
 

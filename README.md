@@ -26,6 +26,11 @@ Install from the AUR:
 yay -S transformers_ocr-git
 ```
 
+Install with [gitpkg](https://gitlab.com/fkzys/gitpkg)
+```
+gitpkg install transformers_ocr
+```
+
 ### Other distros (manual install)
 
 **Step 1.** Install the dependencies for your platform.

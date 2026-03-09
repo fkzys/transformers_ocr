@@ -1,0 +1,4 @@
+# system
+system:python3
+system:pip
+system:notify-send

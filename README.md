@@ -4,7 +4,7 @@ An OCR tool for the GNU operating system that uses `Transformers`.
 Supports Xorg and Wayland.
 
 This is a maintained fork of the [original project](https://github.com/Ajatt-Tools/transformers_ocr) by Ajatt-Tools (now archived).
-Development continues at **https://gitlab.com/fkzys/transformers-ocr**.
+Development continues at **https://gitlab.com/fkzys/transformers_ocr**.
 
 https://user-images.githubusercontent.com/69171671/177458117-ba858b79-0b2e-4605-9985-5801d9685bd6.mp4
 

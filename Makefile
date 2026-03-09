@@ -1,34 +1,29 @@
-PROG = transformers_ocr
+PROG      = transformers_ocr
 SHORT_PROG = trocr
-PREFIX ?= /usr
+PREFIX    ?= /usr
+DESTDIR   ?=
+BINDIR     = $(DESTDIR)$(PREFIX)/bin
+LICENSEDIR = $(DESTDIR)$(PREFIX)/share/licenses/$(PROG)
 
 VPATH = src
 
-EXEC_FILES := $(wildcard $(VPATH)/*.py)
+.PHONY: all install uninstall clean
 
-EXEC_INSTALL := $(patsubst $(VPATH)/%.py,$(PREFIX)/bin/%,$(EXEC_FILES))
-
-.PHONY: all
 all:
-	@echo -e "\033[1;32mThis program doesn't need to be built. Run \"make install\".\033[0m"
+	@printf '\033[1;32m%s\033[0m\n' \
+		'This program does not need to be built. Run "make install".'
 
-$(PREFIX)/bin/%: $(VPATH)/%.py
-	install -Dm755 $< $@
+install:
+	@printf '\033[1;32m%s\033[0m\n' 'Installing $(PROG)...'
+	install -Dm755 $(VPATH)/$(PROG).py $(BINDIR)/$(PROG)
+	ln -sf $(PROG) $(BINDIR)/$(SHORT_PROG)
+	install -Dm644 LICENSE $(LICENSEDIR)/LICENSE
 
-$(PREFIX)/bin/$(SHORT_PROG): $(PREFIX)/bin/$(PROG)
-	ln -srf -- $< $@
-
-.PHONY: install
-install: $(EXEC_INSTALL) $(PREFIX)/bin/$(SHORT_PROG)
-	@echo -e '\033[1;32mInstalling the program...\033[0m'
-
-.PHONY: uninstall
 uninstall:
-	@echo -e '\033[1;32mUninstalling the program...\033[0m'
-	rm -- $(PREFIX)/bin/$(SHORT_PROG)
-	rm -- $(EXEC_INSTALL)
+	@printf '\033[1;32m%s\033[0m\n' 'Uninstalling $(PROG)...'
+	rm -f $(BINDIR)/$(PROG)
+	rm -f $(BINDIR)/$(SHORT_PROG)
+	rm -rf $(LICENSEDIR)
 
-.PHONY: clean
 clean:
-	@echo -e '\033[1;32mCleaning up...\033[0m'
-	rm -rf -- out
+	@printf '\033[1;32m%s\033[0m\n' 'Nothing to clean.'

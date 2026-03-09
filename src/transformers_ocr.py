@@ -353,12 +353,7 @@ def ensure_listening():
 
         prepare_pipe()
         p = subprocess.Popen(
-            (
-                os.path.join(MANGA_OCR_PREFIX, "pyenv", "bin", "python3"),
-                __file__,
-                "start",
-                "--foreground",
-            ),
+            (PROGRAM, "start", "--foreground"),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

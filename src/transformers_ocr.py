@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Copyright: Ren Tatsumoto <tatsu at autistici.org> and contributors
+# Copyright: fkzys and contributors
 # License: GNU GPL, version 3 or later; http://www.gnu.org/licenses/gpl.html
 
 import argparse
@@ -707,7 +708,7 @@ def create_args_parser() -> argparse.ArgumentParser:
         f"\nPlatform: {platform.name}\n"
         f"You need to run '{prog_name()} download' once after installation.\n"
         f"{prog_name()} home page: "
-        "https://github.com/Ajatt-Tools/transformers_ocr"
+        "https://gitlab.com/fkzys/transformers-ocr"
     )
 
     subparsers = parser.add_subparsers(title="commands")

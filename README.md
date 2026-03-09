@@ -23,7 +23,7 @@ to keep your system clean.
 Install from the AUR:
 
 ```bash
-paru -S transformers_ocr
+yay -S transformers_ocr-git
 ```
 
 ### Other distros (manual install)

@@ -3,7 +3,7 @@
 ## [Unreleased] — 2026-03-10
 
 Fork of [Ajatt-Tools/transformers_ocr](https://github.com/Ajatt-Tools/transformers_ocr) (archived).
-Repository moved to https://gitlab.com/fkzys/transformers-ocr.
+Repository moved to https://gitlab.com/fkzys/transformers_ocr.
 
 ### Security
 

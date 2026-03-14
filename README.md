@@ -1,5 +1,8 @@
 # Transformers OCR
 
+[![CI](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml/badge.svg)](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml)
+![License](https://img.shields.io/github/license/rpPH4kQocMjkm2Ve/transformers_ocr)
+
 An OCR tool for the GNU operating system that uses `Transformers`.
 Supports Xorg and Wayland.
 

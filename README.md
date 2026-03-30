@@ -164,6 +164,31 @@ transformers_ocr restart   # restart the listener
 transformers_ocr status    # print current status
 ```
 
+### Systemd user service
+
+A systemd user unit is shipped and installed automatically.
+You can use it instead of manually adding `transformers_ocr start` to
+your autostart:
+
+```bash
+systemctl --user enable --now transformers_ocr.service
+```
+
+To check the service status:
+
+```bash
+systemctl --user status transformers_ocr.service
+```
+
+To stop and disable:
+
+```bash
+systemctl --user disable --now transformers_ocr.service
+```
+
+The service starts the daemon in foreground mode, automatically restarts
+on failure, and is bound to `graphical-session.target`.
+
 ## Holding text
 
 Often a sentence is split across multiple speech bubbles.

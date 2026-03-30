@@ -59,6 +59,14 @@ LOCK_FILE = os.path.join(RUNTIME_DIR, "manga_ocr.lock")
 JOIN = "、"
 CLIP_TEXT_PLACEHOLDER = "%TEXT%"
 
+# Known models that work with the manga-ocr architecture.
+KNOWN_MODELS = (
+    "tatsumoto/manga-ocr-base",
+    "jzhang533/manga-ocr-base-2025",
+    "kha-white/manga-ocr-base",
+)
+DEFAULT_MODEL = "tatsumoto/manga-ocr-base"
+
 
 # ---------------------------------------------------------------------------
 # Config file parsing
@@ -82,6 +90,7 @@ class TrOcrConfig:
     def __init__(self):
         self._config = get_config()
         self.force_cpu = self._should_force_cpu()
+        self.model = self._config.get("model", DEFAULT_MODEL)
         self.clip_args = self._key_to_cmd_args("clip_command")
         self.screenshot_dir = self._get_screenshot_dir()
 

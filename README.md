@@ -239,9 +239,36 @@ Format: `key=value`, one per line. Lines starting with `#` are comments.
 
 | Key | Description | Default |
 |-----|-------------|---------|
+| `model` | HuggingFace model to use (see below) | `tatsumoto/manga-ocr-base` |
 | `clip_command` | Custom clipboard command (see below) | `xclip`/`wl-copy` |
 | `force_cpu` | Force CPU inference (`yes`/`no`) | `no` |
 | `screenshot_dir` | Save screenshots and OCR results to this directory | *(disabled)* |
+
+### Choosing a model
+
+By default, `transformers_ocr` uses
+[`tatsumoto/manga-ocr-base`](https://huggingface.co/tatsumoto/manga-ocr-base),
+which ships weights in the
+[safetensors](https://huggingface.co/docs/safetensors/) format
+(no pickle, faster loading).
+
+Other compatible models:
+
+| Model | Notes |
+|-------|-------|
+| `tatsumoto/manga-ocr-base` | **Default.** Safetensors format. |
+| `jzhang533/manga-ocr-base-2025` | Safetensors format. |
+| `kha-white/manga-ocr-base` | Original model. Uses pickle-based weights. |
+
+To switch:
+
+```bash
+echo 'model=jzhang533/manga-ocr-base-2025' >> ~/.config/transformers_ocr/config
+transformers_ocr restart
+```
+
+Any HuggingFace model path or local directory path compatible with the
+manga-ocr architecture is accepted.
 
 ### Custom clipboard command
 

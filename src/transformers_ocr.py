@@ -1,53 +1,23 @@
 #!/usr/bin/python3
-# Thin wrapper — delegates to the transformers_ocr package.
-# Installed as /usr/bin/transformers_ocr by `make install`.
+# Copyright: Ren Tatsumoto <tatsu at autistici.org> and contributors
+# Copyright: fkzys and contributors
+# License: GNU GPL, version 3 or later; http://www.gnu.org/licenses/gpl.html
+
+# Thin wrapper installed as /usr/bin/transformers_ocr.
+# The package lives in /usr/lib/transformers_ocr/.
 
 import os
 import sys
 
-
-def _ensure_package_importable():
-    """Add the installed package location to sys.path if not already present.
-
-    This handles the case where the entry-point lives in a directory
-    (e.g. ~/.local/bin) whose corresponding site-packages is not on
-    sys.path — common with systemd user units and sudo installs.
-    """
-    try:
-        import transformers_ocr  # noqa: F401 — already importable
-        return
-    except ImportError:
-        pass
-
-    import sysconfig
-    for scheme in ("posix_user", "posix_prefix"):
-        try:
-            sp = sysconfig.get_path("purelib", scheme)
-        except KeyError:
-            continue
-        if sp and os.path.isdir(os.path.join(sp, "transformers_ocr")):
-            sys.path.insert(0, sp)
-            return
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    pkg_dir = os.path.join(script_dir, "transformers_ocr")
-    if os.path.isdir(pkg_dir):
-        sys.path.insert(0, script_dir)
-        return
-
-    bin_dir = os.path.dirname(os.path.abspath(__file__))
-    prefix = os.path.dirname(bin_dir)
-    import glob
-    candidates = glob.glob(
-        os.path.join(prefix, "lib", "python*", "site-packages")
-    )
-    for sp in candidates:
-        if os.path.isdir(os.path.join(sp, "transformers_ocr")):
-            sys.path.insert(0, sp)
-            return
-
-
-_ensure_package_importable()
+# Add the package directory to sys.path so that `import transformers_ocr`
+# works regardless of which Python interpreter runs this script (system,
+# venv, bwrap, etc.).
+_PKGLIB = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    "..", "lib", "transformers_ocr",
+)
+if os.path.isdir(_PKGLIB) and _PKGLIB not in sys.path:
+    sys.path.insert(0, _PKGLIB)
 
 from transformers_ocr.cli import main  # noqa: E402
 

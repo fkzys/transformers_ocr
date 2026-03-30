@@ -31,15 +31,29 @@ def _safe_remove(path: str):
 
 class MangaOcrWrapper:
     def __init__(self):
+        self._config = TrOcrConfig()
+        self._mocr = self._load_model()
+        self._on_hold: list[str] = []
+
+    def _load_model(self):
+        """Load the OCR model specified in the config.
+
+        Uses pretrained_model_name_or_path to select which HuggingFace
+        model to load. This allows switching between different manga-ocr
+        compatible models without changing anything else.
+        """
         from manga_ocr import MangaOcr  # type: ignore
 
-        self._config = TrOcrConfig()
-        self._mocr = MangaOcr(force_cpu=self._config.force_cpu)
-        self._on_hold: list[str] = []
+        print(f"Loading model: {self._config.model}")
+        return MangaOcr(
+            pretrained_model_name_or_path=self._config.model,
+            force_cpu=self._config.force_cpu,
+        )
 
     def init(self) -> "MangaOcrWrapper":
         prepare_pipe()
         print(f"Reading from {PIPE_PATH}")
+        print(f"Model: {self._config.model}")
         print(f"Custom clip args: {self._config.clip_args}")
         return self
 

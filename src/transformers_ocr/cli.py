@@ -13,6 +13,7 @@ from argparse import RawTextHelpFormatter
 from typing import Optional
 
 from transformers_ocr import PROGRAM
+from transformers_ocr.config import KNOWN_MODELS, TrOcrConfig
 from transformers_ocr.download import download_manga_ocr, purge_manga_ocr_data
 from transformers_ocr.exceptions import MissingProgram, ScreenshotCancelled
 from transformers_ocr.fifo import write_command_to_pipe
@@ -86,7 +87,8 @@ def status_str() -> str:
 
 
 def print_status():
-    print(f"{status_str()}, {Platform.current().name}.")
+    config = TrOcrConfig()
+    print(f"{status_str()}, {Platform.current().name}, model: {config.model}.")
 
 
 def _prog_name() -> str:
@@ -105,6 +107,8 @@ def create_args_parser() -> argparse.ArgumentParser:
     )
     parser.epilog = (
         f"\nPlatform: {platform.name}\n"
+        f"Known models: {', '.join(KNOWN_MODELS)}\n"
+        f"Set 'model=<name>' in the config file to switch models.\n"
         f"You need to run '{_prog_name()} download' once after installation.\n"
         f"{_prog_name()} home page: "
         "https://gitlab.com/fkzys/transformers-ocr"

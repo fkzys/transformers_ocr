@@ -93,6 +93,7 @@ class TrOcrConfig:
         self.model = self._config.get("model", DEFAULT_MODEL)
         self.clip_args = self._key_to_cmd_args("clip_command")
         self.screenshot_dir = self._get_screenshot_dir()
+        self.preview = self._config.get("preview", "no") in ("true", "yes")
 
     def _should_force_cpu(self) -> bool:
         return self._config.get("force_cpu", "no") in ("true", "yes")

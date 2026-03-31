@@ -19,7 +19,7 @@ from transformers_ocr.exceptions import MissingProgram, ScreenshotCancelled
 from transformers_ocr.fifo import write_command_to_pipe
 from transformers_ocr.notify import notify_send
 from transformers_ocr.ocr_command import OcrCommand
-from transformers_ocr.platform import Platform, take_screenshot
+from transformers_ocr.platform import Platform, take_screenshot, take_fullscreen_screenshot
 from transformers_ocr.process import (
     ensure_listening,
     get_pid,
@@ -39,26 +39,72 @@ def _safe_remove(path: str):
 # Client-side OCR entry point
 # ---------------------------------------------------------------------------
 
-def run_ocr(command: str, image_path: Optional[str] = None) -> None:
+def run_ocr(
+    command: str,
+    image_path: Optional[str] = None,
+    preview: bool = False,
+) -> None:
+    config = TrOcrConfig()
+    use_preview = preview or config.preview
+
     ensure_listening()
+
     if image_path is not None:
+        if use_preview:
+            from transformers_ocr.preview import preview_image
+
+            result = preview_image(image_path, can_overwrite=False)
+            if result is None:
+                raise ScreenshotCancelled()
+            delete_after = result != image_path
+            image_path = result
+        else:
+            delete_after = False
+
         write_command_to_pipe(
-            OcrCommand(action=command, file_path=image_path, delete_after=False)
+            OcrCommand(
+                action=command,
+                file_path=image_path,
+                delete_after=delete_after,
+            )
         )
         return
 
     fd, screenshot_path = tempfile.mkstemp(suffix=".png")
     os.close(fd)
-    try:
-        take_screenshot(screenshot_path)
-    except (subprocess.CalledProcessError, ScreenshotCancelled):
-        _safe_remove(screenshot_path)
-        raise ScreenshotCancelled()
-    except Exception:
-        _safe_remove(screenshot_path)
-        raise
+
+    if use_preview:
+        # Take fullscreen screenshot, let user crop in overlay
+        try:
+            take_fullscreen_screenshot(screenshot_path)
+        except Exception:
+            _safe_remove(screenshot_path)
+            raise
+
+        from transformers_ocr.preview import preview_image
+
+        result = preview_image(screenshot_path, can_overwrite=True)
+        if result is None:
+            _safe_remove(screenshot_path)
+            raise ScreenshotCancelled()
+        screenshot_path = result
+    else:
+        # Legacy: external tool selects region
+        try:
+            take_screenshot(screenshot_path)
+        except (subprocess.CalledProcessError, ScreenshotCancelled):
+            _safe_remove(screenshot_path)
+            raise ScreenshotCancelled()
+        except Exception:
+            _safe_remove(screenshot_path)
+            raise
+
     write_command_to_pipe(
-        OcrCommand(action=command, file_path=screenshot_path, delete_after=True)
+        OcrCommand(
+            action=command,
+            file_path=screenshot_path,
+            delete_after=True,
+        )
     )
 
 
@@ -123,8 +169,16 @@ def create_args_parser() -> argparse.ArgumentParser:
         "--image-path", help="Path to image to parse.",
         metavar="<path>", default=None,
     )
+    recognize_parser.add_argument(
+        "--preview", "-p", action="store_true",
+        help="Show interactive preview (pan/rotate/zoom) before OCR.",
+    )
     recognize_parser.set_defaults(
-        func=lambda args: run_ocr("recognize", image_path=args.image_path),
+        func=lambda args: run_ocr(
+            "recognize",
+            image_path=args.image_path,
+            preview=args.preview,
+        ),
     )
 
     hold_parser = subparsers.add_parser(
@@ -134,8 +188,16 @@ def create_args_parser() -> argparse.ArgumentParser:
         "--image-path", help="Path to image to parse.",
         metavar="<path>", default=None,
     )
+    hold_parser.add_argument(
+        "--preview", "-p", action="store_true",
+        help="Show interactive preview (pan/rotate/zoom) before OCR.",
+    )
     hold_parser.set_defaults(
-        func=lambda args: run_ocr("hold", image_path=args.image_path),
+        func=lambda args: run_ocr(
+            "hold",
+            image_path=args.image_path,
+            preview=args.preview,
+        ),
     )
 
     download_parser = subparsers.add_parser(

@@ -1,10 +1,14 @@
 # Transformers OCR
 
 [![CI](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml/badge.svg)](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml)
+[![Chat](https://img.shields.io/badge/chat-join-green)](https://tatsumoto-ren.github.io/blog/join-our-community.html)
 ![License](https://img.shields.io/github/license/rpPH4kQocMjkm2Ve/transformers_ocr)
 
 An OCR tool for the GNU operating system that uses `Transformers`.
 Supports Xorg and Wayland.
+
+> [Mining from manga](https://tatsumoto.neocities.org/blog/mining-from-manga.html)
+> — a guide on using OCR for language learning with Anki.
 
 This is a maintained fork of the [original project](https://github.com/Ajatt-Tools/transformers_ocr) by Ajatt-Tools (now archived).
 Development continues at **https://gitlab.com/fkzys/transformers_ocr**.

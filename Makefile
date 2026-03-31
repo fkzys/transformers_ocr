@@ -104,9 +104,10 @@ test-smoke:
 	@if [ "$$(id -u)" -ne 0 ]; then echo "ERROR: needs root" >&2; exit 1; fi
 	@echo "==> Creating test container"
 	mkdir -p $(SMOKE_ROOT)
-	pacstrap -cGM $(SMOKE_ROOT) base python python-pytest xorg-server-xvfb \
-		libx11 sdl2 sdl2_image dbus 2>/dev/null
+	pacstrap -cGM $(SMOKE_ROOT) base make python python-pytest python-pytest-timeout \
+		xorg-server-xvfb libx11 sdl2 sdl2_image dbus 2>/dev/null
 	@echo "==> Copying source"
+	mkdir -p $(SMOKE_ROOT)/opt/trocr
 	cp -a src tests Makefile $(SMOKE_ROOT)/opt/trocr/
 	systemd-nspawn -q --register=no -D $(SMOKE_ROOT) /bin/bash -c \
 		'cd /opt/trocr && make test-unit && make test-xvfb'

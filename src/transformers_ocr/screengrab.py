@@ -70,7 +70,7 @@ class _XImage(ctypes.Structure):
         ("height", ctypes.c_int),
         ("xoffset", ctypes.c_int),
         ("format", ctypes.c_int),
-        ("data", ctypes.c_char_p),
+        ("data", ctypes.c_void_p),
         ("byte_order", ctypes.c_int),
         ("bitmap_unit", ctypes.c_int),
         ("bitmap_bit_order", ctypes.c_int),
@@ -171,7 +171,10 @@ def _grab_x11(output_path: str) -> bool:
             stride = ximg.bytes_per_line
             data_ptr = ximg.data
 
-            if bpp != 32 or not data_ptr:
+            if not data_ptr:
+                print("screengrab: XGetImage returned null data", file=sys.stderr)
+                return False
+            if bpp != 32:
                 print(f"screengrab: unsupported bpp={bpp}", file=sys.stderr)
                 return False
 

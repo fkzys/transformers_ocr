@@ -143,3 +143,41 @@ def take_screenshot(screenshot_path: str):
             _maim_select(screenshot_path)
         case Platform.Wayland:
             _grim_select(screenshot_path)
+
+def take_fullscreen_screenshot(screenshot_path: str):
+    """Capture the entire screen without any selection UI."""
+    platform = Platform.current()
+    match platform:
+        case Platform.GNOME:
+            raise_if_missing("gnome-screenshot")
+            subprocess.run(
+                ("gnome-screenshot", "-f", screenshot_path),
+                check=True,
+            )
+        case Platform.KDE:
+            raise_if_missing("spectacle")
+            subprocess.run(
+                ("spectacle", "-n", "-b", "-f", "-o", screenshot_path),
+                check=True, stderr=subprocess.DEVNULL,
+            )
+        case Platform.XFCE:
+            raise_if_missing("xfce4-screenshooter")
+            subprocess.run(
+                ("xfce4-screenshooter", "-f", "-s", screenshot_path),
+                check=True, stderr=subprocess.DEVNULL,
+            )
+        case Platform.Xorg:
+            raise_if_missing("maim")
+            subprocess.run(
+                (
+                    "maim", "--hidecursor",
+                    "--format=png", "--quality", "1", screenshot_path,
+                ),
+                check=True, stderr=subprocess.DEVNULL,
+            )
+        case Platform.Wayland:
+            raise_if_missing("grim")
+            subprocess.run(
+                ("grim", screenshot_path),
+                check=True,
+            )

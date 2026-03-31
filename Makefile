@@ -12,7 +12,7 @@ VPATH      = src
 
 MODULES = __init__.py __main__.py cli.py config.py download.py \
           exceptions.py fifo.py notify.py ocr_command.py \
-          platform.py process.py wrapper.py preview.py
+          platform.py process.py wrapper.py preview.py screengrab.py
 
 .PHONY: all install uninstall clean
 

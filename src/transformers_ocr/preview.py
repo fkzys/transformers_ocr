@@ -107,6 +107,8 @@ if _HAS_SDL2:
     SDL_HINT_VIDEO_WAYLAND_PREFER_LIBDECOR = b"SDL_VIDEO_WAYLAND_PREFER_LIBDECOR"
     SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR = b"SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR"
 
+    SDL_SYSTEM_CURSOR_CROSSHAIR = 3
+
     class SDL_Rect(ctypes.Structure):
         _fields_ = [("x", _i32), ("y", _i32), ("w", _i32), ("h", _i32)]
 
@@ -225,6 +227,9 @@ if _HAS_SDL2:
     _sdl.SDL_CreateSoftwareRenderer.restype = _void_p
     _sdl.SDL_UpperBlit.argtypes = [_void_p, ctypes.POINTER(SDL_Rect), _void_p, ctypes.POINTER(SDL_Rect)]
     _sdl.SDL_UpperBlit.restype = _c_int
+    _sdl.SDL_CreateSystemCursor.argtypes = [_c_int]; _sdl.SDL_CreateSystemCursor.restype = _void_p
+    _sdl.SDL_SetCursor.argtypes = [_void_p]; _sdl.SDL_SetCursor.restype = None
+    _sdl.SDL_FreeCursor.argtypes = [_void_p]; _sdl.SDL_FreeCursor.restype = None
     _img.IMG_Init.argtypes = [_c_int]; _img.IMG_Init.restype = _c_int
     _img.IMG_Quit.argtypes = []; _img.IMG_Quit.restype = None
     _img.IMG_Load.argtypes = [_c_char_p]; _img.IMG_Load.restype = _void_p
@@ -257,6 +262,38 @@ def preview_image(
 
 
 # ---------------------------------------------------------------------------
+# Coordinate transform helper
+# ---------------------------------------------------------------------------
+
+def _transform_point_cw90(x: float, y: float, ew: float, _eh: float) -> tuple[float, float]:
+    """Transform a point from old rotated space to new rotated space after CW 90°.
+
+    Before rotation the effective size is (ew, eh).
+    After CW 90° the effective size becomes (eh, ew).
+    A point (x, y) maps to (eh - y, x).
+    """
+    return _eh - y, x
+
+
+def _transform_point(
+    x: float, y: float,
+    ew: float, eh: float,
+    steps: int,
+) -> tuple[float, float]:
+    """Transform a point through *steps* CW-90° rotations.
+
+    *ew*, *eh* are the effective image size BEFORE the rotation.
+    *steps* is 1..3 (already taken mod 4, 0 means no-op).
+    """
+    cx, cy = x, y
+    cw, ch = ew, eh
+    for _ in range(steps):
+        cx, cy = _transform_point_cw90(cx, cy, cw, ch)
+        cw, ch = ch, cw  # effective size swaps after each 90°
+    return cx, cy
+
+
+# ---------------------------------------------------------------------------
 # Crop overlay
 # ---------------------------------------------------------------------------
 
@@ -281,9 +318,9 @@ class _CropOverlay:
         self._oy: float = 0.0
 
         # Crop selection in IMAGE coordinates (after rotation)
-        self._sel_active = False    # currently dragging a selection
-        self._has_sel = False       # selection exists
-        self._sel_x0: float = 0.0   # image-space coords
+        self._sel_active = False
+        self._has_sel = False
+        self._sel_x0: float = 0.0
         self._sel_y0: float = 0.0
         self._sel_x1: float = 0.0
         self._sel_y1: float = 0.0
@@ -347,6 +384,10 @@ class _CropOverlay:
             raise RuntimeError(f"Texture: {_sdl.SDL_GetError().decode()}")
         _sdl.SDL_SetTextureBlendMode(self._texture, SDL_BLENDMODE_BLEND)
 
+        self._cursor = _sdl.SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR)
+        if self._cursor:
+            _sdl.SDL_SetCursor(self._cursor)
+
         self._fit()
 
     # ── coordinate transforms ───────────────────────────────────────
@@ -373,6 +414,21 @@ class _CropOverlay:
         ix = (self._scr_w - ew * self._zoom) / 2.0 + self._ox
         iy = (self._scr_h - eh * self._zoom) / 2.0 + self._oy
         return ix + img_x * self._zoom, iy + img_y * self._zoom
+
+    def _viewport_center_in_image(self) -> tuple[float, float]:
+        """Return the image-space point currently at the screen center."""
+        return self._screen_to_image(self._scr_w / 2.0, self._scr_h / 2.0)
+
+    def _center_image_point(self, img_x: float, img_y: float):
+        """Adjust offsets so that (img_x, img_y) in image space sits at screen center."""
+        ew, eh = self._effective_size()
+        # screen center = (scr_w/2, scr_h/2)
+        # image_to_screen(img_x, img_y) should equal screen center
+        # ix + img_x * zoom = scr_w / 2
+        # ix = (scr_w - ew * zoom) / 2 + ox
+        # => ox = scr_w/2 - img_x * zoom - (scr_w - ew * zoom) / 2
+        self._ox = self._scr_w / 2.0 - img_x * self._zoom - (self._scr_w - ew * self._zoom) / 2.0
+        self._oy = self._scr_h / 2.0 - img_y * self._zoom - (self._scr_h - eh * self._zoom) / 2.0
 
     def _fit(self):
         ew, eh = self._effective_size()
@@ -420,10 +476,6 @@ class _CropOverlay:
         # Draw dark overlay outside selection (dimming)
         if self._has_sel or self._sel_active:
             self._draw_selection_overlay(sw, sh)
-
-        # Draw crosshair at cursor if no selection yet
-        if not self._has_sel and not self._sel_active:
-            self._draw_crosshair()
 
         _sdl.SDL_RenderPresent(self._renderer)
         self._needs_redraw = False
@@ -502,10 +554,43 @@ class _CropOverlay:
         self._needs_redraw = True
 
     def _rotate(self, degrees: int):
+        """Rotate by *degrees* (±90, ±180, …).
+
+        Preserves the viewport center and any active selection.
+        """
+        steps = (degrees // 90) % 4
+        if steps == 0:
+            return
+
+        old_ew, old_eh = self._effective_size()
+
+        # 1. Remember what image point is at screen center
+        vc_x, vc_y = self._viewport_center_in_image()
+
+        # 2. Transform selection
+        if self._has_sel or self._sel_active:
+            self._sel_x0, self._sel_y0 = _transform_point(
+                self._sel_x0, self._sel_y0, old_ew, old_eh, steps,
+            )
+            self._sel_x1, self._sel_y1 = _transform_point(
+                self._sel_x1, self._sel_y1, old_ew, old_eh, steps,
+            )
+            # Normalize so x0 <= x1, y0 <= y1 (not strictly required
+            # since _draw_selection_overlay and _get_crop_rect handle it,
+            # but keeps the invariant clean).
+            if self._sel_x0 > self._sel_x1:
+                self._sel_x0, self._sel_x1 = self._sel_x1, self._sel_x0
+            if self._sel_y0 > self._sel_y1:
+                self._sel_y0, self._sel_y1 = self._sel_y1, self._sel_y0
+
+        # 3. Apply rotation
         self._rot = (self._rot + degrees) % 360
-        self._has_sel = False
-        self._sel_active = False
-        self._fit()
+
+        # 4. Transform viewport center to new rotated space and re-center
+        new_vc_x, new_vc_y = _transform_point(vc_x, vc_y, old_ew, old_eh, steps)
+        self._center_image_point(new_vc_x, new_vc_y)
+
+        self._needs_redraw = True
 
     # ── crop & save ─────────────────────────────────────────────────
 
@@ -529,8 +614,7 @@ class _CropOverlay:
         ix1, iy1 = x1, y1
         ow, oh = float(self._img_w), float(self._img_h)
 
-        if steps == 1:  # 90° CW: rotated (rx,ry) -> original (ry, ew-rx)
-            # ew=img_h, eh=img_w after 90° rotation
+        if steps == 1:
             nix0 = iy0
             niy0 = ew - ix1
             nix1 = iy1
@@ -542,7 +626,7 @@ class _CropOverlay:
             nix1 = ew - ix0
             niy1 = eh - iy0
             ix0, iy0, ix1, iy1 = nix0, niy0, nix1, niy1
-        elif steps == 3:  # 270° CW
+        elif steps == 3:
             nix0 = eh - iy1
             niy0 = ix0
             nix1 = eh - iy0
@@ -561,7 +645,7 @@ class _CropOverlay:
     def _save_cropped(self) -> Optional[str]:
         crop = self._get_crop_rect()
         if crop is None:
-            return self._path  # no selection = full image
+            return self._path
 
         rx, ry, rw, rh = crop
 
@@ -677,9 +761,6 @@ class _CropOverlay:
                 self._ox = self._pan_ox + (ev.motion.x - self._pan_start_x)
                 self._oy = self._pan_oy + (ev.motion.y - self._pan_start_y)
                 self._needs_redraw = True
-            elif not self._has_sel:
-                # Crosshair follows cursor
-                self._needs_redraw = True
 
         elif t == SDL_MOUSEWHEEL:
             dy = ev.wheel.y
@@ -722,4 +803,6 @@ class _CropOverlay:
         if self._window:
             _sdl.SDL_DestroyWindow(self._window); self._window = None
         _img.IMG_Quit()
+        if self._cursor:
+            _sdl.SDL_FreeCursor(self._cursor); self._cursor = None
         _sdl.SDL_Quit()

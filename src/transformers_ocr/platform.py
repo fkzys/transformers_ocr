@@ -2,14 +2,13 @@
 # Copyright: fkzys and contributors
 # License: GNU GPL, version 3 or later; http://www.gnu.org/licenses/gpl.html
 
-"""Platform detection, screenshot and clipboard helpers."""
+"""Platform detection and clipboard helpers."""
 
 import enum
 import os
 import shutil
-import subprocess
 
-from transformers_ocr.exceptions import MissingProgram, ScreenshotCancelled
+from transformers_ocr.exceptions import MissingProgram
 
 
 # ---------------------------------------------------------------------------
@@ -21,54 +20,19 @@ def _is_xorg() -> bool:
 
 
 class Platform(enum.Enum):
-    GNOME = enum.auto()
-    KDE = enum.auto()
-    XFCE = enum.auto()
     Xorg = enum.auto()
     Wayland = enum.auto()
 
     @classmethod
     def current(cls) -> "Platform":
-        desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
-        if desktop == "GNOME":
-            return cls.GNOME
-        if desktop == "KDE":
-            return cls.KDE
-        if desktop == "XFCE":
-            return cls.XFCE
         if _is_xorg():
             return cls.Xorg
         return cls.Wayland
 
 
 # ---------------------------------------------------------------------------
-# Dependency checks
+# Clipboard
 # ---------------------------------------------------------------------------
-
-def is_installed(program: str) -> bool:
-    if shutil.which(program):
-        return True
-    try:
-        return (
-            subprocess.call(
-                ("pacman", "-Qq", program),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            == 0
-        )
-    except FileNotFoundError:
-        return False
-
-
-def raise_if_missing(*programs: str):
-    from transformers_ocr import PROGRAM
-    for prog in programs:
-        if not is_installed(prog):
-            raise MissingProgram(
-                f"{prog} must be installed for {PROGRAM} to work."
-            )
-
 
 def get_clip_copy_args() -> tuple[str, ...]:
     if _is_xorg():
@@ -76,108 +40,24 @@ def get_clip_copy_args() -> tuple[str, ...]:
     return ("wl-copy",)
 
 
-# ---------------------------------------------------------------------------
-# Screenshot helpers
-# ---------------------------------------------------------------------------
-
-def _gnome_screenshot_select(screenshot_path: str):
-    raise_if_missing("gnome-screenshot")
-    subprocess.run(("gnome-screenshot", "-a", "-f", screenshot_path), check=True)
-
-
-def _spectacle_select(screenshot_path: str):
-    raise_if_missing("spectacle")
-    subprocess.run(
-        ("spectacle", "-n", "-b", "-r", "-o", screenshot_path),
-        check=True,
-        stderr=subprocess.DEVNULL,
-    )
-
-
-def _xfce_screenshooter_select(screenshot_path: str):
-    raise_if_missing("xfce4-screenshooter")
-    subprocess.run(
-        ("xfce4-screenshooter", "-r", "-s", screenshot_path),
-        check=True,
-        stderr=subprocess.DEVNULL,
-    )
-
-
-def _maim_select(screenshot_path: str):
-    raise_if_missing("maim")
-    subprocess.run(
-        (
-            "maim", "--select", "--hidecursor",
-            "--format=png", "--quality", "1", screenshot_path,
-        ),
-        check=True,
-        stderr=subprocess.DEVNULL,
-    )
-
-
-def _grim_select(screenshot_path: str):
-    raise_if_missing("grim", "slurp")
-    try:
-        geometry = (
-            subprocess.check_output(["slurp"], stderr=subprocess.DEVNULL)
-            .decode()
-            .strip()
+def raise_if_missing(program: str):
+    from transformers_ocr import PROGRAM
+    if not shutil.which(program):
+        raise MissingProgram(
+            f"{program} must be installed for {PROGRAM} to work."
         )
-    except subprocess.CalledProcessError as ex:
-        raise ScreenshotCancelled("slurp selection cancelled") from ex
-    if not geometry:
-        raise ScreenshotCancelled("slurp returned empty geometry")
-    subprocess.run(("grim", "-g", geometry, screenshot_path), check=True)
 
 
-def take_screenshot(screenshot_path: str):
-    platform = Platform.current()
-    match platform:
-        case Platform.GNOME:
-            _gnome_screenshot_select(screenshot_path)
-        case Platform.KDE:
-            _spectacle_select(screenshot_path)
-        case Platform.XFCE:
-            _xfce_screenshooter_select(screenshot_path)
-        case Platform.Xorg:
-            _maim_select(screenshot_path)
-        case Platform.Wayland:
-            _grim_select(screenshot_path)
+# ---------------------------------------------------------------------------
+# Screenshot
+# ---------------------------------------------------------------------------
 
 def take_fullscreen_screenshot(screenshot_path: str):
     """Capture the entire screen without any selection UI."""
-    platform = Platform.current()
-    match platform:
-        case Platform.GNOME:
-            raise_if_missing("gnome-screenshot")
-            subprocess.run(
-                ("gnome-screenshot", "-f", screenshot_path),
-                check=True,
-            )
-        case Platform.KDE:
-            raise_if_missing("spectacle")
-            subprocess.run(
-                ("spectacle", "-n", "-b", "-f", "-o", screenshot_path),
-                check=True, stderr=subprocess.DEVNULL,
-            )
-        case Platform.XFCE:
-            raise_if_missing("xfce4-screenshooter")
-            subprocess.run(
-                ("xfce4-screenshooter", "-f", "-s", screenshot_path),
-                check=True, stderr=subprocess.DEVNULL,
-            )
-        case Platform.Xorg:
-            raise_if_missing("maim")
-            subprocess.run(
-                (
-                    "maim", "--hidecursor",
-                    "--format=png", "--quality", "1", screenshot_path,
-                ),
-                check=True, stderr=subprocess.DEVNULL,
-            )
-        case Platform.Wayland:
-            raise_if_missing("grim")
-            subprocess.run(
-                ("grim", screenshot_path),
-                check=True,
-            )
+    from transformers_ocr.screengrab import grab_fullscreen
+    if not grab_fullscreen(screenshot_path):
+        raise RuntimeError(
+            "Screen capture failed. "
+            "On X11: ensure libX11 is available. "
+            "On Wayland: ensure xdg-desktop-portal is running."
+        )

@@ -102,31 +102,20 @@ class TestTrOcrConfig:
     def test_default_model_is_safetensors(self):
         assert tocr_config.DEFAULT_MODEL == "tatsumoto/manga-ocr-base"
 
-    # ── preview config option ──
+    # ── preview config option removed ──
 
-    def test_preview_default_false(self):
+    def test_no_preview_attribute(self):
+        """The 'preview' config option was removed."""
         with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"):
-            assert tocr_config.TrOcrConfig().preview is False
+            cfg = tocr_config.TrOcrConfig()
+            assert not hasattr(cfg, "preview")
 
-    def test_preview_yes(self, tmp_path):
+    def test_preview_key_in_file_ignored(self, tmp_path):
+        """Even if 'preview=yes' is in config file, no attribute is set."""
         (tmp_path / "config").write_text("preview=yes\n")
         with patch.object(tocr_config, "CONFIG_PATH", str(tmp_path / "config")):
-            assert tocr_config.TrOcrConfig().preview is True
-
-    def test_preview_true(self, tmp_path):
-        (tmp_path / "config").write_text("preview=true\n")
-        with patch.object(tocr_config, "CONFIG_PATH", str(tmp_path / "config")):
-            assert tocr_config.TrOcrConfig().preview is True
-
-    def test_preview_no(self, tmp_path):
-        (tmp_path / "config").write_text("preview=no\n")
-        with patch.object(tocr_config, "CONFIG_PATH", str(tmp_path / "config")):
-            assert tocr_config.TrOcrConfig().preview is False
-
-    def test_preview_arbitrary_value(self, tmp_path):
-        (tmp_path / "config").write_text("preview=maybe\n")
-        with patch.object(tocr_config, "CONFIG_PATH", str(tmp_path / "config")):
-            assert tocr_config.TrOcrConfig().preview is False
+            cfg = tocr_config.TrOcrConfig()
+            assert not hasattr(cfg, "preview")
 
 
 class TestPaths:

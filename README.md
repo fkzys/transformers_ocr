@@ -12,7 +12,8 @@ Development continues at **https://gitlab.com/fkzys/transformers_ocr**.
 https://user-images.githubusercontent.com/69171671/177458117-ba858b79-0b2e-4605-9985-5801d9685bd6.mp4
 
 The application is designed to be lightweight and work well with tiling window managers.
-It requires few dependencies — most of which you probably already have.
+Screen capture and the crop/preview overlay use native libraries (Xlib, D-Bus, SDL2)
+loaded via ctypes — no external screenshot tools are required.
 The heavier Python libraries (`manga-ocr`, `transformers`, `torch`) are installed
 into an isolated virtual environment under `~/.local/share/manga_ocr`
 to keep your system clean.
@@ -29,7 +30,8 @@ Install from the AUR:
 yay -S transformers_ocr-git
 ```
 
-Install with [gitpkg](https://gitlab.com/fkzys/gitpkg)
+Install with [gitpkg](https://gitlab.com/fkzys/gitpkg):
+
 ```
 gitpkg install transformers_ocr
 ```
@@ -42,8 +44,9 @@ gitpkg install transformers_ocr
 <summary>Xorg</summary>
 
 * [pip](https://pypi.org/project/pip/)
-* [maim](https://github.com/naelstrof/maim)
-* [xclip](https://github.com/astrand/xclip)
+* [xclip](https://github.com/astrand/xclip) (clipboard)
+* [libX11](https://www.x.org/) (screen capture — usually already installed)
+* [SDL2](https://www.libsdl.org/) + [SDL2_image](https://github.com/libsdl-org/SDL_image) (crop/preview overlay — optional but recommended)
 
 </details>
 
@@ -51,36 +54,9 @@ gitpkg install transformers_ocr
 <summary>Wayland</summary>
 
 * [pip](https://pypi.org/project/pip/)
-* [grim](https://git.sr.ht/~emersion/grim)
-* [slurp](https://github.com/emersion/slurp)
 * [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy`)
-
-</details>
-
-<details>
-<summary>GNOME</summary>
-
-* [pip](https://pypi.org/project/pip/)
-* [gnome-screenshot](https://gitlab.gnome.org/GNOME/gnome-screenshot)
-* [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy`)
-
-</details>
-
-<details>
-<summary>KDE</summary>
-
-* [pip](https://pypi.org/project/pip/)
-* [spectacle](https://github.com/KDE/spectacle/)
-* [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy`)
-
-</details>
-
-<details>
-<summary>XFCE</summary>
-
-* [pip](https://pypi.org/project/pip/)
-* [xfce4-screenshooter](https://gitlab.xfce.org/apps/xfce4-screenshooter)
-* [xclip](https://github.com/astrand/xclip)
+* [xdg-desktop-portal](https://github.com/flatpak/xdg-desktop-portal) (screen capture — usually already running)
+* [SDL2](https://www.libsdl.org/) + [SDL2_image](https://github.com/libsdl-org/SDL_image) (crop/preview overlay — optional but recommended)
 
 </details>
 
@@ -124,8 +100,26 @@ transformers_ocr --help
 transformers_ocr recognize
 ```
 
-A screen-selection tool will appear. Select a region containing text,
-and the recognized result will be copied to the clipboard.
+A fullscreen screenshot is taken, then a crop overlay appears.
+Draw a rectangle around the text you want to recognize, press
+Enter or Space to confirm. The recognized result is copied to the clipboard.
+
+**Overlay controls:**
+
+| Action | Input |
+|--------|-------|
+| Select region | Left-click drag |
+| Pan | Middle-click drag |
+| Zoom | Scroll wheel / `+` / `-` |
+| Rotate CW 90° | `r` |
+| Rotate CCW 90° | `Shift+r` |
+| Reset view | `0` |
+| Accept | Enter / Space |
+| Clear selection | Right-click (when selection exists) |
+| Cancel | Escape / Right-click (no selection) / close window |
+
+If SDL2 is not installed, the overlay is skipped and the full screenshot
+is sent directly to OCR.
 
 ### Keyboard shortcut
 
@@ -213,6 +207,10 @@ taking a screenshot:
 transformers_ocr recognize --image-path /path/to/image.png
 ```
 
+The crop overlay still appears, letting you select a region within the
+image. If you crop, the original file is left untouched and a temporary
+cropped copy is used for OCR.
+
 Example with Flameshot:
 
 ```bash
@@ -221,7 +219,7 @@ flameshot gui --path "$img" --delay 100
 transformers_ocr recognize --image-path "$img"
 ```
 
-> **Note:** when `--image-path` is used, the file is **not** deleted
+> **Note:** when `--image-path` is used, the original file is **not** deleted
 > after recognition.
 
 ## Config file
@@ -290,6 +288,31 @@ echo 'force_cpu=yes' >> ~/.config/transformers_ocr/config
 transformers_ocr restart
 ```
 
+## Architecture
+
+```
+┌─────────────┐      FIFO       ┌──────────────┐
+│  CLI client  │ ──────────────▶ │   Listener   │
+│  (recognize, │  OcrCommand    │  (wrapper.py) │
+│   hold, …)   │  as JSON       │              │
+└──────┬───────┘                └──────┬───────┘
+       │                               │
+  screenshot                     manga-ocr model
+  + crop overlay                 + clipboard
+  (screengrab.py,                  (xclip/wl-copy
+   preview.py)                    or custom cmd)
+```
+
+The CLI client takes a screenshot (via Xlib on X11 or xdg-desktop-portal
+on Wayland), opens an SDL2 crop overlay, then writes an `OcrCommand`
+(JSON) to a named pipe. The listener daemon reads commands, runs the
+manga-ocr model, and copies recognized text to the clipboard.
+
+Communication between client and listener uses a FIFO at
+`$XDG_RUNTIME_DIR/transformers_ocr/manga_ocr.fifo`. The listener is
+started automatically on the first `recognize`/`hold` call and can be
+managed with `start`/`stop`/`restart`/`status`.
+
 ## Purge
 
 Remove all downloaded model data and the virtual environment:
@@ -297,6 +320,10 @@ Remove all downloaded model data and the virtual environment:
 ```bash
 transformers_ocr purge
 ```
+
+## Tests
+
+See [`tests/README.md`](tests/README.md) for details.
 
 ## License
 

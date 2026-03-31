@@ -43,125 +43,66 @@ class TestStatus:
 
 
 # ═══════════════════════════════════════════════════
-# run_ocr (legacy, no preview)
+# run_ocr — image_path provided
 # ═══════════════════════════════════════════════════
 
 
-class TestRunOcrLegacy:
-    """Tests for run_ocr when preview is disabled (legacy path)."""
+class TestRunOcrWithImagePath:
+    """Tests for run_ocr when image_path is given (always goes through preview)."""
 
-    def test_with_image_path(self):
-        with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
-             patch.object(tocr_cli, "ensure_listening"), \
-             patch.object(tocr_cli, "write_command_to_pipe") as mock_write:
-            tocr_cli.run_ocr("recognize", image_path="/img.png")
-            cmd = mock_write.call_args[0][0]
-            assert cmd.action == "recognize"
-            assert cmd.file_path == "/img.png"
-            assert cmd.delete_after is False
-
-    def test_with_screenshot(self):
-        with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
-             patch.object(tocr_cli, "ensure_listening"), \
-             patch("tempfile.mkstemp", return_value=(99, "/tmp/shot.png")), \
-             patch("os.close"), \
-             patch.object(tocr_cli, "take_screenshot"), \
-             patch.object(tocr_cli, "write_command_to_pipe") as mock_write:
-            tocr_cli.run_ocr("recognize")
-            cmd = mock_write.call_args[0][0]
-            assert cmd.delete_after is True
-            assert cmd.file_path == "/tmp/shot.png"
-
-    def test_screenshot_cancelled_cleanup(self):
-        with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
-             patch.object(tocr_cli, "ensure_listening"), \
-             patch("tempfile.mkstemp", return_value=(99, "/tmp/s.png")), \
-             patch("os.close"), \
-             patch.object(tocr_cli, "take_screenshot", side_effect=ScreenshotCancelled()), \
-             patch.object(tocr_cli, "_safe_remove") as mock_rm, \
-             pytest.raises(ScreenshotCancelled):
-            tocr_cli.run_ocr("recognize")
-        mock_rm.assert_called_with("/tmp/s.png")
-
-    def test_unexpected_error_cleanup(self):
-        with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
-             patch.object(tocr_cli, "ensure_listening"), \
-             patch("tempfile.mkstemp", return_value=(99, "/tmp/s.png")), \
-             patch("os.close"), \
-             patch.object(tocr_cli, "take_screenshot", side_effect=RuntimeError("boom")), \
-             patch.object(tocr_cli, "_safe_remove") as mock_rm, \
-             pytest.raises(RuntimeError):
-            tocr_cli.run_ocr("recognize")
-        mock_rm.assert_called_with("/tmp/s.png")
-
-
-# ═══════════════════════════════════════════════════
-# run_ocr with preview
-# ═══════════════════════════════════════════════════
-
-
-class TestRunOcrPreview:
-    """Tests for run_ocr when preview is enabled."""
-
-    def _config_no_preview(self):
-        """Return a TrOcrConfig with preview=False."""
-        with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"):
-            return tocr_config.TrOcrConfig()
-
-    def _config_with_preview(self):
-        """Return a TrOcrConfig with preview=True."""
-        cfg = self._config_no_preview()
-        cfg.preview = True
-        return cfg
-
-    # ── preview flag via argument ──
-
-    def test_preview_flag_with_image_path_accept(self):
-        """preview=True + image_path: preview_image is called, result forwarded."""
+    def test_with_image_path_accept_cropped(self):
+        """preview_image returns a different path → delete_after=True."""
         with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
              patch.object(tocr_cli, "ensure_listening"), \
              patch("transformers_ocr.preview.preview_image", return_value="/tmp/cropped.png") as mock_preview, \
              patch.object(tocr_cli, "write_command_to_pipe") as mock_write:
-            tocr_cli.run_ocr("recognize", image_path="/img.png", preview=True)
+            tocr_cli.run_ocr("recognize", image_path="/img.png")
             mock_preview.assert_called_once_with("/img.png", can_overwrite=False)
             cmd = mock_write.call_args[0][0]
+            assert cmd.action == "recognize"
             assert cmd.file_path == "/tmp/cropped.png"
-            # cropped path != original → delete_after=True
             assert cmd.delete_after is True
 
-    def test_preview_flag_with_image_path_same_returned(self):
+    def test_with_image_path_same_returned(self):
         """preview_image returns same path → delete_after=False."""
         with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
              patch.object(tocr_cli, "ensure_listening"), \
              patch("transformers_ocr.preview.preview_image", return_value="/img.png"), \
              patch.object(tocr_cli, "write_command_to_pipe") as mock_write:
-            tocr_cli.run_ocr("recognize", image_path="/img.png", preview=True)
+            tocr_cli.run_ocr("recognize", image_path="/img.png")
             cmd = mock_write.call_args[0][0]
+            assert cmd.file_path == "/img.png"
             assert cmd.delete_after is False
 
-    def test_preview_flag_with_image_path_cancelled(self):
+    def test_with_image_path_cancelled(self):
         """preview_image returns None → ScreenshotCancelled."""
         with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
              patch.object(tocr_cli, "ensure_listening"), \
              patch("transformers_ocr.preview.preview_image", return_value=None), \
              pytest.raises(ScreenshotCancelled):
-            tocr_cli.run_ocr("recognize", image_path="/img.png", preview=True)
-
-    # ── preview flag via config ──
-
-    def test_config_preview_enables_preview_path(self):
-        """Config preview=yes triggers preview path even without --preview flag."""
-        mock_cfg = self._config_with_preview()
-        with patch.object(tocr_config, "TrOcrConfig", return_value=mock_cfg), \
-             patch.object(tocr_cli, "ensure_listening"), \
-             patch("transformers_ocr.preview.preview_image", return_value="/img.png"), \
-             patch.object(tocr_cli, "write_command_to_pipe"):
             tocr_cli.run_ocr("recognize", image_path="/img.png")
 
-    # ── preview with screenshot (no image_path) ──
+    def test_hold_with_image_path(self):
+        """hold command with image_path works the same way."""
+        with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
+             patch.object(tocr_cli, "ensure_listening"), \
+             patch("transformers_ocr.preview.preview_image", return_value="/img.png"), \
+             patch.object(tocr_cli, "write_command_to_pipe") as mock_write:
+            tocr_cli.run_ocr("hold", image_path="/img.png")
+            cmd = mock_write.call_args[0][0]
+            assert cmd.action == "hold"
 
-    def test_preview_screenshot_accept(self):
-        """preview + no image_path: fullscreen screenshot taken, then preview."""
+
+# ═══════════════════════════════════════════════════
+# run_ocr — screenshot path (no image_path)
+# ═══════════════════════════════════════════════════
+
+
+class TestRunOcrScreenshot:
+    """Tests for run_ocr without image_path (fullscreen screenshot + preview)."""
+
+    def test_screenshot_accept(self):
+        """Fullscreen screenshot taken, then preview, result forwarded."""
         with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
              patch.object(tocr_cli, "ensure_listening"), \
              patch("tempfile.mkstemp", return_value=(99, "/tmp/full.png")), \
@@ -169,14 +110,14 @@ class TestRunOcrPreview:
              patch.object(tocr_cli, "take_fullscreen_screenshot") as mock_fs, \
              patch("transformers_ocr.preview.preview_image", return_value="/tmp/cropped.png"), \
              patch.object(tocr_cli, "write_command_to_pipe") as mock_write:
-            tocr_cli.run_ocr("recognize", preview=True)
+            tocr_cli.run_ocr("recognize")
             mock_fs.assert_called_once_with("/tmp/full.png")
             cmd = mock_write.call_args[0][0]
             assert cmd.file_path == "/tmp/cropped.png"
             assert cmd.delete_after is True
 
-    def test_preview_screenshot_cancelled(self):
-        """preview + no image_path: user cancels in overlay."""
+    def test_screenshot_preview_cancelled(self):
+        """User cancels in overlay → cleanup + ScreenshotCancelled."""
         with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
              patch.object(tocr_cli, "ensure_listening"), \
              patch("tempfile.mkstemp", return_value=(99, "/tmp/full.png")), \
@@ -185,10 +126,10 @@ class TestRunOcrPreview:
              patch("transformers_ocr.preview.preview_image", return_value=None), \
              patch.object(tocr_cli, "_safe_remove") as mock_rm, \
              pytest.raises(ScreenshotCancelled):
-            tocr_cli.run_ocr("recognize", preview=True)
+            tocr_cli.run_ocr("recognize")
         mock_rm.assert_called_with("/tmp/full.png")
 
-    def test_preview_fullscreen_screenshot_error(self):
+    def test_fullscreen_screenshot_error_cleanup(self):
         """Fullscreen screenshot fails → cleanup and re-raise."""
         with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
              patch.object(tocr_cli, "ensure_listening"), \
@@ -197,8 +138,22 @@ class TestRunOcrPreview:
              patch.object(tocr_cli, "take_fullscreen_screenshot", side_effect=RuntimeError("fail")), \
              patch.object(tocr_cli, "_safe_remove") as mock_rm, \
              pytest.raises(RuntimeError, match="fail"):
-            tocr_cli.run_ocr("recognize", preview=True)
+            tocr_cli.run_ocr("recognize")
         mock_rm.assert_called_with("/tmp/full.png")
+
+    def test_screenshot_preview_returns_same_path(self):
+        """preview_image returns the same temp path → delete_after=True (it's still a temp)."""
+        with patch.object(tocr_config, "CONFIG_PATH", "/nonexistent"), \
+             patch.object(tocr_cli, "ensure_listening"), \
+             patch("tempfile.mkstemp", return_value=(99, "/tmp/full.png")), \
+             patch("os.close"), \
+             patch.object(tocr_cli, "take_fullscreen_screenshot"), \
+             patch("transformers_ocr.preview.preview_image", return_value="/tmp/full.png"), \
+             patch.object(tocr_cli, "write_command_to_pipe") as mock_write:
+            tocr_cli.run_ocr("recognize")
+            cmd = mock_write.call_args[0][0]
+            assert cmd.file_path == "/tmp/full.png"
+            assert cmd.delete_after is True
 
 
 # ═══════════════════════════════════════════════════
@@ -248,38 +203,35 @@ class TestCliParser:
     def test_parser_alias_listen(self):
         assert hasattr(tocr_cli.create_args_parser().parse_args(["listen"]), "func")
 
-    # ── --preview flag ──
+    # ── --preview flag removed ──
 
-    def test_parser_recognize_preview_flag(self):
-        args = tocr_cli.create_args_parser().parse_args(["recognize", "--preview"])
-        assert args.preview is True
+    def test_parser_recognize_no_preview_flag(self):
+        """--preview flag was removed; passing it should fail."""
+        with pytest.raises(SystemExit):
+            tocr_cli.create_args_parser().parse_args(["recognize", "--preview"])
 
-    def test_parser_recognize_preview_short(self):
-        args = tocr_cli.create_args_parser().parse_args(["recognize", "-p"])
-        assert args.preview is True
+    def test_parser_recognize_no_preview_short(self):
+        with pytest.raises(SystemExit):
+            tocr_cli.create_args_parser().parse_args(["recognize", "-p"])
 
-    def test_parser_recognize_no_preview_default(self):
+    def test_parser_hold_no_preview_flag(self):
+        with pytest.raises(SystemExit):
+            tocr_cli.create_args_parser().parse_args(["hold", "--preview"])
+
+    def test_parser_recognize_no_preview_attr(self):
+        """Parsed args should not have a 'preview' attribute."""
         args = tocr_cli.create_args_parser().parse_args(["recognize"])
-        assert args.preview is False
+        assert not hasattr(args, "preview")
 
-    def test_parser_hold_preview_flag(self):
-        args = tocr_cli.create_args_parser().parse_args(["hold", "--preview"])
-        assert args.preview is True
-
-    def test_parser_hold_preview_short(self):
-        args = tocr_cli.create_args_parser().parse_args(["hold", "-p"])
-        assert args.preview is True
-
-    def test_parser_hold_no_preview_default(self):
+    def test_parser_hold_no_preview_attr(self):
         args = tocr_cli.create_args_parser().parse_args(["hold"])
-        assert args.preview is False
+        assert not hasattr(args, "preview")
 
-    def test_parser_recognize_preview_with_image(self):
+    def test_parser_recognize_with_image(self):
         args = tocr_cli.create_args_parser().parse_args([
-            "recognize", "--image-path", "/img.png", "--preview",
+            "recognize", "--image-path", "/img.png",
         ])
         assert args.image_path == "/img.png"
-        assert args.preview is True
 
 
 class TestCliMain:

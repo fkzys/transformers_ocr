@@ -5,8 +5,6 @@
 
 X11:     Xlib XGetImage
 Wayland: xdg-desktop-portal Screenshot (D-Bus via libdbus-1)
-
-Falls back to external tools (grim/maim) if native capture fails.
 """
 
 import ctypes

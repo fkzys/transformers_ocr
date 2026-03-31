@@ -56,8 +56,8 @@ class TestRaiseIfMissing:
 
     def test_absent(self):
         with patch("shutil.which", return_value=None), \
-             pytest.raises(MissingProgram, match="grim"):
-            tocr_platform.raise_if_missing("grim")
+             pytest.raises(MissingProgram, match="fakeprog"):
+            tocr_platform.raise_if_missing("fakeprog")
 
     def test_single_arg_only(self):
         """Function signature accepts exactly one program."""

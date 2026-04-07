@@ -3,6 +3,7 @@
 [![CI](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml/badge.svg)](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml)
 [![Chat](https://img.shields.io/badge/chat-join-green)](https://tatsumoto-ren.github.io/blog/join-our-community.html)
 ![License](https://img.shields.io/github/license/rpPH4kQocMjkm2Ve/transformers_ocr)
+[![Spec](https://img.shields.io/endpoint?url=https://gitlab.com/fkzys/specs/-/raw/main/version.json&maxAge=300)](https://gitlab.com/fkzys/specs)
 
 An OCR tool for the GNU operating system that uses `Transformers`.
 Supports Xorg and Wayland.

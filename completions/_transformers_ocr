@@ -1,0 +1,38 @@
+#compdef transformers_ocr
+
+_transformers_ocr() {
+    _arguments -C \
+        '(- *)'{-h,--help}'[Show help]' \
+        '1:command:((
+            recognize\:"OCR a part of the screen"
+            ocr\:"OCR a part of the screen (alias)"
+            hold\:"OCR and hold"
+            start\:"Start listening"
+            listen\:"Start listening (alias)"
+            stop\:"Stop listening"
+            status\:"Print status"
+            restart\:"Restart listener"
+            download\:"Download OCR model"
+            purge\:"Purge model data"
+            nuke\:"Purge model data (alias)"
+        ))' \
+        '*::arg:->args' \
+        && return
+
+    case $state in
+        args)
+            case ${words[1]} in
+                recognize|ocr|hold)
+                    _arguments \
+                        '--image-path[Path to image]:file:_files'
+                    ;;
+                start|listen)
+                    _arguments \
+                        '--foreground[Run in foreground]'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_transformers_ocr "$@"

@@ -1,9 +1,9 @@
 # Transformers OCR
 
-[![CI](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml/badge.svg)](https://github.com/rpPH4kQocMjkm2Ve/transformers_ocr/actions/workflows/ci.yml)
+[![CI](https://github.com/fkzys/transformers_ocr/actions/workflows/ci.yml/badge.svg)](https://github.com/fkzys/transformers_ocr/actions/workflows/ci.yml)
 [![Chat](https://img.shields.io/badge/chat-join-green)](https://tatsumoto-ren.github.io/blog/join-our-community.html)
-![License](https://img.shields.io/github/license/rpPH4kQocMjkm2Ve/transformers_ocr)
-[![Spec](https://img.shields.io/endpoint?url=https://gitlab.com/fkzys/specs/-/raw/main/version.json&maxAge=300)](https://gitlab.com/fkzys/specs)
+![License](https://img.shields.io/github/license/fkzys/transformers_ocr)
+[![Spec](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/fkzys/specs/refs/heads/main/version.json&maxAge=300)](https://github.com/fkzys/specs)
 
 An OCR tool for the GNU operating system that uses `Transformers`.
 Supports Xorg and Wayland.
@@ -35,7 +35,7 @@ Install from the AUR:
 yay -S transformers_ocr-git
 ```
 
-Install with [gitpkg](https://gitlab.com/fkzys/gitpkg):
+Install with [gitpkg](https://github.com/fkzys/gitpkg):
 
 ```
 gitpkg install transformers_ocr
@@ -68,7 +68,7 @@ gitpkg install transformers_ocr
 **Step 2.** Clone and install.
 
 ```bash
-git clone 'https://gitlab.com/fkzys/transformers-ocr.git'
+git clone 'https://github.com/fkzys/transformers-ocr.git'
 cd transformers-ocr
 sudo make install
 ```

@@ -140,7 +140,7 @@ def create_args_parser() -> argparse.ArgumentParser:
         f"Set 'model=<name>' in the config file to switch models.\n"
         f"You need to run '{_prog_name()} download' once after installation.\n"
         f"{_prog_name()} home page: "
-        "https://gitlab.com/fkzys/transformers-ocr"
+        "https://github.com/fkzys/transformers-ocr"
     )
 
     subparsers = parser.add_subparsers(title="commands")
